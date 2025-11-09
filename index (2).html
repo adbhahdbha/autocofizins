@@ -37,6 +37,7 @@
       box-shadow: 0 8px 0 #cc5555; transition: all 0.1s; font-family: 'Permanent Marker', cursive;
     }
     button:active { transform: translateY(4px); box-shadow: 0 4px 0 #cc5555; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
     .posts { margin-top: 20px; }
     .post {
       background: white; padding: 20px; margin: 15px 0; border-radius: 25px;
@@ -51,68 +52,120 @@
     .autor { font-weight: bold; color: #ff6b6b; font-size: 1.3rem; text-shadow: 1px 1px 0 #fff; }
     .data { color: #888; font-size: 0.9rem; text-align: right; margin-top: 10px; }
     .vazio { text-align: center; font-size: 2rem; color: white; text-shadow: 2px 2px 0 #000; margin: 50px 0; }
-    .backup { text-align: center; margin: 30px 0; }
-    .backup button { background: #6bcf7f; box-shadow: 0 8px 0 #4aa85a; margin: 0 10px; }
-    .backup button:active { box-shadow: 0 4px 0 #4aa85a; }
+    .loading { text-align: center; font-size: 1.5rem; color: white; text-shadow: 2px 2px 0 #000; margin: 30px 0; }
+    .aviso-cloud {
+      background: rgba(107, 207, 127, 0.9); padding: 15px; border-radius: 20px;
+      text-align: center; color: white; font-weight: bold; margin-bottom: 20px;
+      border: 5px solid #4aa85a; text-shadow: 1px 1px 0 #000;
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
     <header>
-      <h1>AUTO COFIZINS <span class="banana">BANANA</span></h1>
+      <h1>AUTO COFIZINS <span class="banana">🍌</span></h1>
       <p style="font-size:1.5rem; margin-top:10px;">ESCREVE AÍ, COFIZIN!</p>
     </header>
+
+    <div class="aviso-cloud">
+      ☁️ VERSÃO CLOUD - TODOS VEEM AS MESMAS MENSAGENS! ☁️
+    </div>
 
     <div class="form-macaco">
       <textarea id="texto" placeholder="FALA AÍ, COFIZIN!"></textarea>
       <input type="text" id="autor" placeholder="TEU NOME, COFIZIN (opcional)" />
-      <button onclick="publicar()">MANDAR COFIZIN!</button>
-    </div>
-
-    <div class="backup">
-      <button onclick="backup()">SALVAR NO CELULAR</button>
-      <button onclick="restaurar()">CARREGAR COFIZINS</button>
+      <button id="btnPublicar" onclick="publicar()">MANDAR COFIZIN!</button>
     </div>
 
     <div id="posts" class="posts">
-      <div class="vazio">NENHUM COFIZIN AINDA... <br> SEJA O PRIMEIRO!</div>
+      <div class="loading">⏳ CARREGANDO COFIZINS...</div>
     </div>
   </div>
 
   <script>
-    const CHAVE = 'auto_cofizins_posts';
+    const STORAGE_KEY = 'cofizins-posts-v1';
 
-    function carregar() {
-      const posts = JSON.parse(localStorage.getItem(CHAVE) || '[]');
+    // Carrega posts do storage na nuvem
+    async function carregar() {
       const lista = document.getElementById('posts');
-      if (posts.length === 0) {
+      try {
+        const result = await window.storage.get(STORAGE_KEY, true);
+        const posts = result ? JSON.parse(result.value) : [];
+        
+        if (posts.length === 0) {
+          lista.innerHTML = '<div class="vazio">NENHUM COFIZIN AINDA... <br> SEJA O PRIMEIRO!</div>';
+          return;
+        }
+        
+        lista.innerHTML = posts.map(p => `
+          <div class="post">
+            <p style="font-size:1.3rem; line-height:1.6;">${escaparHTML(p.texto).replace(/\n/g, '<br>')}</p>
+            <div class="autor">— ${escaparHTML(p.autor || 'Cofizin Anônimo')}</div>
+            <div class="data">${formatar(p.data)}</div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.log('Primeira vez carregando, criando storage...', err);
         lista.innerHTML = '<div class="vazio">NENHUM COFIZIN AINDA... <br> SEJA O PRIMEIRO!</div>';
-        return;
       }
-      lista.innerHTML = posts.map(p => `
-        <div class="post">
-          <p style="font-size:1.3rem; line-height:1.6;">${p.texto.replace(/\n/g, '<br>')}</p>
-          <div class="autor">— ${p.autor || 'Cofizin Anônimo'}</div>
-          <div class="data">${formatar(p.data)}</div>
-        </div>
-      `).join('');
     }
 
-    function publicar() {
+    // Publica novo post
+    async function publicar() {
       const texto = document.getElementById('texto').value.trim();
       const autor = document.getElementById('autor').value.trim() || 'Cofizin Anônimo';
+      const btn = document.getElementById('btnPublicar');
+      
       if (!texto) return alert('ESCREVE ALGO, COFIZIN!');
+      if (texto.length > 1000) return alert('MUITO GRANDE, COFIZIN! MAX 1000 CARACTERES!');
 
-      const posts = JSON.parse(localStorage.getItem(CHAVE) || '[]');
-      posts.unshift({ texto, autor, data: new Date().toISOString() });
-      localStorage.setItem(CHAVE, JSON.stringify(posts));
+      btn.disabled = true;
+      btn.textContent = 'ENVIANDO...';
 
-      document.getElementById('texto').value = '';
-      document.getElementById('autor').value = '';
-      carregar();
+      try {
+        // Busca posts existentes
+        let posts = [];
+        try {
+          const result = await window.storage.get(STORAGE_KEY, true);
+          posts = result ? JSON.parse(result.value) : [];
+        } catch (err) {
+          console.log('Criando novo storage');
+        }
+
+        // Adiciona novo post
+        posts.unshift({ 
+          texto, 
+          autor, 
+          data: new Date().toISOString() 
+        });
+
+        // Limita a 100 posts para não estourar o limite de 5MB
+        if (posts.length > 100) {
+          posts = posts.slice(0, 100);
+        }
+
+        // Salva no storage compartilhado
+        await window.storage.set(STORAGE_KEY, JSON.stringify(posts), true);
+
+        // Limpa formulário
+        document.getElementById('texto').value = '';
+        document.getElementById('autor').value = '';
+
+        // Recarrega posts
+        await carregar();
+        
+        alert('COFIZIN PUBLICADO! 🎉');
+      } catch (err) {
+        console.error('Erro ao publicar:', err);
+        alert('ERRO AO PUBLICAR, COFIZIN! TENTA DE NOVO!');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'MANDAR COFIZIN!';
+      }
     }
 
+    // Formata data relativa
     function formatar(iso) {
       const d = new Date(iso);
       const agora = new Date();
@@ -123,42 +176,18 @@
       return d.toLocaleDateString('pt-BR');
     }
 
-    function backup() {
-      const data = localStorage.getItem(CHAVE) || '[]';
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'cofizins_backup.json';
-      a.click();
-      URL.revokeObjectURL(url);
-      alert('COFIZINS SALVOS NO CELULAR!');
+    // Escapa HTML para prevenir XSS
+    function escaparHTML(texto) {
+      const div = document.createElement('div');
+      div.textContent = texto;
+      return div.innerHTML;
     }
 
-    function restaurar() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      input.onchange = e => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = ev => {
-          try {
-            const posts = JSON.parse(ev.target.result);
-            localStorage.setItem(CHAVE, JSON.stringify(posts));
-            carregar();
-            alert('COFIZINS CARREGADOS!');
-          } catch {
-            alert('ARQUIVO ERRADO, COFIZIN!');
-          }
-        };
-        reader.readAsText(file);
-      };
-      input.click();
-    }
-
-    // Inicia
+    // Carrega posts ao iniciar
     carregar();
+
+    // Recarrega posts a cada 30 segundos
+    setInterval(carregar, 30000);
   </script>
 
 </body>
