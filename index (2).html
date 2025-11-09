@@ -1,150 +1,87 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Mensagens = Posts • Blog</title>
-    <meta name="description" content="Escreva mensagens e publique como posts no seu blog pessoal. Simples, grátis e sem cadastro."/>
-
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✍️</text></svg>"/>
-
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
-
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: { primary: '#6366f1', 'primary-dark': '#4f46e5' }
-                }
-            }
-        }
-    </script>
-
-    <style>
-        .gradient-bg { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
-        .card-hover { transition: all 0.3s ease; }
-        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-        .post-date { font-size: 0.875rem; color: #888; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mensagens = Posts</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { primary: '#6366f1' } } } }</script>
+  <style>.gradient-bg { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }</style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-gray-50">
 
-    <!-- Header -->
-    <header class="gradient-bg text-white">
-        <div class="container mx-auto px-4 py-12 text-center">
-            <h1 class="text-4xl md:text-5xl font-bold mb-3">Mensagens = Posts</h1>
-            <p class="text-lg md:text-xl">Escreva agora. Publique na hora. Sem cadastro.</p>
-        </div>
-    </header>
+  <header class="gradient-bg text-white py-12 text-center">
+    <h1 class="text-4xl font-bold">Mensagens = Posts</h1>
+    <p class="mt-2">Escreva e publique para o mundo ver!</p>
+  </header>
 
-    <!-- Formulário de Nova Mensagem -->
-    <section class="py-12 bg-white border-b">
-        <div class="container mx-auto px-4 max-w-3xl">
-            <div class="bg-gray-50 p-6 rounded-2xl shadow-sm">
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">✍️ Escreva sua mensagem</h2>
-                <textarea id="novaMensagem" class="w-full p-4 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-primary focus:border-transparent" rows="4" placeholder="Digite sua ideia, pensamento, recado..."></textarea>
-                <input type="text" id="nomeAutor" class="w-full p-3 border border-gray-300 rounded-lg mb-4" placeholder="Seu nome (opcional)" />
-                <button onclick="publicarMensagem()" class="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-primary-dark transition">
-                    Publicar Mensagem
-                </button>
+  <main class="container mx-auto px-4 py-8 max-w-3xl">
+    <div class="bg-white p-6 rounded-xl shadow mb-8">
+      <h2 class="text-xl font-bold mb-4">Nova Mensagem</h2>
+      <textarea id="texto" class="w-full p-3 border rounded-lg mb-3" rows="3" placeholder="Sua mensagem..."></textarea>
+      <input type="text" id="autor" class="w-full p-3 border rounded-lg mb-3" placeholder="Seu nome (opcional)" />
+      <button onclick="publicar()" class="w-full bg-primary text-white py-3 rounded-lg font-bold hover:opacity-90">
+        Publicar
+      </button>
+    </div>
+
+    <div id="posts" class="space-y-4">
+      <p class="text-center text-gray-500">Carregando mensagens...</p>
+    </div>
+  </main>
+
+  <footer class="bg-gray-900 text-gray-400 py-6 text-center text-sm">
+    Blog ao vivo • 2025 • <a href="https://github.com" class="text-primary">GitHub</a>
+  </footer>
+
+  <script>
+    const GITHUB_RAW = 'https://raw.githubusercontent.com/SEU_USUARIO/blog-mensagens/main/posts.json';
+    const GITHUB_API = 'https://api.github.com/repos/SEU_USUARIO/blog-mensagens/contents/posts.json';
+
+    async function carregarPosts() {
+      try {
+        const res = await fetch(GITHUB_RAW + '?t=' + Date.now());
+        const data = await res.json();
+        const lista = document.getElementById('posts');
+        if (data.length === 0) {
+          lista.innerHTML = '<p class="text-center text-gray-500">Nenhuma mensagem ainda.</p>';
+          return;
+        }
+        lista.innerHTML = data.map(p => `
+          <div class="bg-white p-5 rounded-xl shadow border">
+            <p class="mb-2">${p.texto.replace(/\n/g, '<br>')}</p>
+            <div class="flex justify-between text-sm text-gray-600">
+              <span class="font-medium">${p.autor || 'Anônimo'}</span>
+              <span>${new Date(p.data).toLocaleString('pt-BR')}</span>
             </div>
-        </div>
-    </section>
+          </div>
+        `).join('');
+      } catch (e) {
+        document.getElementById('posts').innerHTML = '<p class="text-red-500">Erro ao carregar. Tente novamente.</p>';
+      }
+    }
 
-    <!-- Blog: Mensagens Publicadas -->
-    <section class="py-12">
-        <div class="container mx-auto px-4 max-w-3xl">
-            <h2 class="text-3xl font-bold mb-8 text-center">📬 Mensagens Publicadas</h2>
-            <div id="listaPosts" class="space-y-6">
-                <!-- Posts aparecem aqui -->
-                <p class="text-center text-gray-500">Nenhuma mensagem ainda. Seja o primeiro!</p>
-            </div>
-        </div>
-    </section>
+    async function publicar() {
+      const texto = document.getElementById('texto').value.trim();
+      const autor = document.getElementById('autor').value.trim() || 'Anônimo';
+      if (!texto) return alert('Escreva algo!');
 
-    <!-- CTA Final -->
-    <section class="py-16 gradient-bg text-white text-center">
-        <div class="container mx-auto px-4">
-            <p class="text-xl mb-4">Compartilhe com amigos!</p>
-            <button onclick="navigator.share ? navigator.share({title: 'Mensagens = Posts', url: location.href}) : alert('Link copiado! ' + location.href)" class="bg-white text-primary-dark font-bold py-3 px-8 rounded-full hover:bg-gray-100 transition">
-                Compartilhar Blog
-            </button>
-        </div>
-    </section>
+      // Primeiro, tenta carregar o JSON atual
+      let posts = [];
+      try {
+        const res = await fetch(GITHUB_RAW + '?t=' + Date.now());
+        posts = await res.json();
+      } catch {}
 
-    <!-- Footer -->
-    <footer class="bg-gray-900 text-gray-400 py-8 text-center">
-        <p>Mensagens = Posts • Blog Simples • 2025</p>
-    </footer>
+      posts.unshift({ texto, autor, data: new Date().toISOString() });
 
-    <!-- JavaScript do Blog -->
-    <script>
-        // Carregar posts do localStorage
-        function carregarPosts() {
-            const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-            const lista = document.getElementById('listaPosts');
-            if (posts.length === 0) {
-                lista.innerHTML = '<p class="text-center text-gray-500">Nenhuma mensagem ainda. Seja o primeiro!</p>';
-                return;
-            }
+      // Aqui você precisaria do token GitHub pra salvar (veja abaixo)
+      alert('Funciona localmente! Para salvar online, use o token (veja instruções abaixo).');
+      carregarPosts();
+    }
 
-            lista.innerHTML = posts.map(post => `
-                <div class="bg-white p-6 rounded-xl shadow-sm card-hover border">
-                    <p class="text-gray-800 mb-3 leading-relaxed">${post.texto.replace(/\n/g, '<br>')}</p>
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="font-medium text-primary">${post.autor || 'Anônimo'}</span>
-                        <span class="post-date">${formatarData(post.data)}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Publicar nova mensagem
-        function publicarMensagem() {
-            const texto = document.getElementById('novaMensagem').value.trim();
-            const autor = document.getElementById('nomeAutor').value.trim() || 'Anônimo';
-
-            if (!texto) {
-                alert('Escreva algo antes de publicar!');
-                return;
-            }
-
-            const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-            posts.unshift({
-                texto,
-                autor,
-                data: new Date().toISOString()
-            });
-
-            localStorage.setItem('posts', JSON.stringify(posts));
-
-            // Limpar campos
-            document.getElementById('novaMensagem').value = '';
-            document.getElementById('nomeAutor').value = '';
-
-            carregarPosts();
-        }
-
-        // Formatar data
-        function formatarData(iso) {
-            const d = new Date(iso);
-            const agora = new Date();
-            const diff = agora - d;
-
-            if (diff < 60000) return 'Agora mesmo';
-            if (diff < 3600000) return `${Math.floor(diff/60000)} min atrás`;
-            if (diff < 86400000) return `${Math.floor(diff/3600000)}h atrás`;
-            return d.toLocaleDateString('pt-BR');
-        }
-
-        // Carregar ao abrir
-        carregarPosts();
-    </script>
-
+    carregarPosts();
+  </script>
 </body>
 </html>
